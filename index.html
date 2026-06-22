@@ -227,8 +227,12 @@
    let loadTimer = null;
 let iframeLoaded = false;
 let currentView = "loading";
+    
+const HAS_OPENED_KEY = "daily_activity_ibs_has_opened_v1";
 
-const HAS_OPENED_KEY = "sim_murojaah_has_opened";
+try {
+  localStorage.removeItem("sim_murojaah_has_opened");
+} catch (err) {}
 
    function buildIframeUrl(forceReload = false) {
   const currentParams = new URLSearchParams(window.location.search);
@@ -591,6 +595,19 @@ if (data.type === "SIM_PASSKEY_GET_REQUEST") {
 
   target.postMessage(payload, "*");
 }
+
+    const DAILY_ACTIVITY_PUBLIC_URL = "https://miaauwcorp.github.io/DAILY-ACTIVITY-IBS/";
+
+(function redirectOldRepoPathToDailyActivity() {
+  const oldPath = "/SIM-ALQURAN-IBS/";
+  const newPath = "/DAILY-ACTIVITY-IBS/";
+
+  if (window.location.pathname.indexOf(oldPath) === 0) {
+    window.location.replace(
+      window.location.origin + newPath + window.location.search + window.location.hash
+    );
+  }
+})();
   </script>
 </body>
 </html>
