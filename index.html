@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="google-site-verification" content="-sj41DUUTHg0cG_cAuSLB9XlCzvGmKoimBJfODe5uVY" />
+  <meta name="description" content="SIM Murojaah IBS Riau - Sistem Informasi Manajemen Hafalan Al-Qur'an untuk Santri Kelas 6 IBS Riau."/>
+
+  <title>SIM MUROJAAH IBS RIAU</title>
+
+  <!-- PWA -->
+  <meta name="theme-color" content="#15803d" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="SIM MUROJAAH IBS" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icon-192.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #eee;
+      overflow: hidden;
+    }
+
+    .iframe-container {
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      background: #eee;
+    }
+
+    iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #fff;
+    }
+
+    .status-page {
+      display: none;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      padding: 24px;
+      box-sizing: border-box;
+      background: linear-gradient(135deg, #0b3d2c, #15803d);
+      color: #fff;
+    }
+
+    .status-page .box {
+      max-width: 430px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+    }
+
+    .status-page h1 {
+      margin: 0 0 10px;
+      font-size: 24px;
+    }
+
+    .status-page p {
+      margin: 0;
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    .actions {
+      margin-top: 18px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .retry-btn,
+    .wa-help {
+      display: inline-block;
+      padding: 12px 18px;
+      border-radius: 999px;
+      border: none;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.22);
+    }
+
+    .retry-btn {
+      background: #fff;
+      color: #14532d;
+    }
+
+    .wa-help {
+      background: #25d366;
+      color: #fff;
+    }
+
+    .retry-btn:active,
+    .wa-help:active {
+      transform: scale(0.98);
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      border: 4px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      animation: spin 0.9s linear infinite;
+    }
+
+    .small-text {
+      margin-top: 14px !important;
+      font-size: 13px !important;
+      opacity: 0.85;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Loading -->
+  <div id="loading-page" class="status-page">
+    <div class="box">
+      <div class="spinner"></div>
+      <h1>Memuat Aplikasi</h1>
+      <p>Mohon tunggu, SIM AL-QUR'AN IBS RIAU sedang dibuka.</p>
+      <p class="small-text">Pastikan koneksi internet stabil.</p>
+    </div>
+  </div>
+
+  <!-- Offline -->
+  <div id="offline-page" class="status-page">
+    <div class="box">
+      <h1>SIM AL-QUR'AN IBS RIAU</h1>
+      <p>
+        Aplikasi sedang offline atau koneksi internet tidak tersedia.
+        Silakan periksa koneksi, lalu coba buka kembali aplikasi.
+      </p>
+
+      <div class="actions">
+        <button type="button" class="retry-btn" onclick="retryApp()">
+          Coba Lagi
+        </button>
+
+        <a
+          class="wa-help"
+          href="https://wa.me/62895602258987?text=Assalamualaikum%2C%20Mohon%20bantuannya%20atas%20gangguan%20server%20SIM%20AL-QUR%27AN%20IBS%20RIAU"
+          target="_blank"
+          rel="noopener noreferrer">
+          Bantuan WhatsApp
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Server bermasalah -->
+  <div id="server-page" class="status-page">
+    <div class="box">
+      <h1>Server Sedang Lambat</h1>
+      <p>
+        Aplikasi belum berhasil terhubung ke server SIM AL-QUR'AN IBS RIAU.
+        Silakan coba lagi. Jika masih gagal, hubungi admin melalui WhatsApp.
+      </p>
+
+      <div class="actions">
+        <button type="button" class="retry-btn" onclick="retryApp()">
+          Coba Lagi
+        </button>
+
+        <a
+          class="wa-help"
+          href="https://wa.me/62895602258987?text=Assalamualaikum%2C%20Mohon%20bantuannya%20atas%20gangguan%20server%20SIM%20AL-QUR%27AN%20IBS%20RIAU"
+          target="_blank"
+          rel="noopener noreferrer">
+          Bantuan WhatsApp
+        </a>
+      </div>
+
+      <p class="small-text">
+        Jika internet aktif tetapi aplikasi tetap tidak terbuka, kemungkinan server sedang mengalami gangguan.
+      </p>
+    </div>
+  </div>
+
+  <!-- Aplikasi utama -->
+  <div class="iframe-container" id="iframe-container">
+  <iframe
+  id="app"
+  title="SIM MUROJAAH IBS RIAU"
+  scrolling="yes"
+  allowfullscreen="true"
+  webkitallowfullscreen="true"
+  mozallowfullscreen="true"
+  allow="fullscreen *; camera *; microphone *; display-capture *; geolocation *; publickey-credentials-create *; publickey-credentials-get *;">
+</iframe>
+  </div>
+
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxv29VDLzUWt-J6rEL-KcqylOGqilnPiijfibo-xj6mX7Pu3kAz6l1av9OkMddtX_Kw-Q/exec";
+
+    // Jika iframe tidak berhasil terbuka dalam waktu ini, tampilkan halaman server bermasalah
+    const LOAD_TIMEOUT_MS = 15000;
+
+   let loadTimer = null;
+let iframeLoaded = false;
+let currentView = "loading";
+
+const HAS_OPENED_KEY = "sim_murojaah_has_opened";
+
+   function buildIframeUrl(forceReload = false) {
+  const currentParams = new URLSearchParams(window.location.search);
+  const iframeParams = new URLSearchParams();
+
+  iframeParams.set("source", "pwa");
+  iframeParams.set("bioV", "3");
+
+  const page = currentParams.get("page") || "";
+  const nama = currentParams.get("nama") || "";
+  const raporToken = currentParams.get("raporToken") || "";
+  const laporanToken = currentParams.get("laporanToken") || "";
+
+  if (page) iframeParams.set("page", page);
+  if (nama) iframeParams.set("nama", nama);
+
+  // Penting untuk Link Wali
+  if (raporToken) iframeParams.set("raporToken", raporToken);
+  if (laporanToken) iframeParams.set("laporanToken", laporanToken);
+
+  if (forceReload) {
+    iframeParams.set("_reload", Date.now().toString());
+  }
+
+  const query = iframeParams.toString();
+  return query ? `${GAS_URL}?${query}` : GAS_URL;
+}
+
+  function setView(view) {
+  currentView = view;
+
+  const loadingPage = document.getElementById("loading-page");
+  const offlinePage = document.getElementById("offline-page");
+  const serverPage = document.getElementById("server-page");
+  const iframeContainer = document.getElementById("iframe-container");
+
+  loadingPage.style.display = view === "loading" ? "flex" : "none";
+  offlinePage.style.display = view === "offline" ? "flex" : "none";
+  serverPage.style.display = view === "server" ? "flex" : "none";
+  iframeContainer.style.display = view === "app" ? "block" : "none";
+}
+
+    function clearLoadTimer() {
+      if (loadTimer) {
+        clearTimeout(loadTimer);
+        loadTimer = null;
+      }
+    }
+
+    function startLoadTimer() {
+      clearLoadTimer();
+
+      loadTimer = setTimeout(function () {
+        if (!iframeLoaded && navigator.onLine) {
+          setView("server");
+        }
+      }, LOAD_TIMEOUT_MS);
+    }
+
+    function loadApp(forceReload = false) {
+  const iframe = document.getElementById("app");
+
+  if (!navigator.onLine) {
+    clearLoadTimer();
+    setView("offline");
+    return;
+  }
+
+  const hasOpenedBefore = localStorage.getItem(HAS_OPENED_KEY) === "1";
+
+  iframeLoaded = false;
+
+  // Kalau aplikasi pernah berhasil terbuka sebelumnya,
+  // langsung tampilkan iframe, jangan tampilkan halaman loading penuh.
+  if (hasOpenedBefore) {
+    setView("app");
+  } else {
+    setView("loading");
+  }
+
+  startLoadTimer();
+
+      iframe.setAttribute(
+  "allow",
+  "fullscreen *; camera *; microphone *; display-capture *; geolocation *; publickey-credentials-create *; publickey-credentials-get *;"
+);
+
+  iframe.src = buildIframeUrl(forceReload);
+}
+
+    function retryApp() {
+      if (!navigator.onLine) {
+        setView("offline");
+        return;
+      }
+
+      loadApp(true);
+    }
+
+    function showOfflineIfNeeded() {
+      if (!navigator.onLine) {
+        clearLoadTimer();
+        setView("offline");
+      }
+    }
+
+    const iframe = document.getElementById("app");
+
+    iframe.addEventListener("load", function () {
+  const src = iframe.getAttribute("src") || "";
+
+  if (!src || src === "about:blank") return;
+
+  iframeLoaded = true;
+
+  // Simpan tanda bahwa aplikasi sudah pernah berhasil terbuka
+  localStorage.setItem(HAS_OPENED_KEY, "1");
+
+  clearLoadTimer();
+  setView("app");
+});
+
+    iframe.addEventListener("error", function () {
+      if (navigator.onLine) {
+        clearLoadTimer();
+        setView("server");
+      } else {
+        clearLoadTimer();
+        setView("offline");
+      }
+    });
+
+    loadApp();
+    showOfflineIfNeeded();
+
+   window.addEventListener("online", function () {
+  // Reload hanya kalau sebelumnya memang offline/server,
+  // bukan setiap koneksi online terdeteksi ulang.
+  if (currentView === "offline" || currentView === "server") {
+    loadApp(true);
+  }
+});
+
+    window.addEventListener("offline", function () {
+      showOfflineIfNeeded();
+    });
+
+   function simBufferToBase64Url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+
+  bytes.forEach(function (b) {
+    binary += String.fromCharCode(b);
+  });
+
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function simBase64UrlToBuffer(base64url) {
+  const value = String(base64url || "");
+  const base64 = value
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .padEnd(Math.ceil(value.length / 4) * 4, "=");
+
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes.buffer;
+}
+
+function simSerializeCredential(credential) {
+  const response = credential.response || {};
+
+  return {
+    id: credential.id,
+    rawId: credential.rawId ? simBufferToBase64Url(credential.rawId) : "",
+    type: credential.type,
+    authenticatorAttachment: credential.authenticatorAttachment || "",
+    response: {
+      clientDataJSON: response.clientDataJSON
+        ? simBufferToBase64Url(response.clientDataJSON)
+        : "",
+      attestationObject: response.attestationObject
+        ? simBufferToBase64Url(response.attestationObject)
+        : "",
+      authenticatorData: response.authenticatorData
+        ? simBufferToBase64Url(response.authenticatorData)
+        : "",
+      signature: response.signature
+        ? simBufferToBase64Url(response.signature)
+        : "",
+      userHandle: response.userHandle
+        ? simBufferToBase64Url(response.userHandle)
+        : ""
+    }
+  };
+}
+
+function simPrepareCreateOptions(options) {
+  const publicKey = Object.assign({}, options || {});
+
+  publicKey.challenge = simBase64UrlToBuffer(publicKey.challenge);
+
+  if (publicKey.user && publicKey.user.id) {
+    publicKey.user = Object.assign({}, publicKey.user, {
+      id: simBase64UrlToBuffer(publicKey.user.id)
+    });
+  }
+
+  if (Array.isArray(publicKey.excludeCredentials)) {
+    publicKey.excludeCredentials = publicKey.excludeCredentials.map(function (item) {
+      return Object.assign({}, item, {
+        id: simBase64UrlToBuffer(item.id)
+      });
+    });
+  }
+
+  return { publicKey: publicKey };
+}
+
+function simPrepareGetOptions(options) {
+  const publicKey = Object.assign({}, options || {});
+
+  publicKey.challenge = simBase64UrlToBuffer(publicKey.challenge);
+
+  if (Array.isArray(publicKey.allowCredentials)) {
+    publicKey.allowCredentials = publicKey.allowCredentials.map(function (item) {
+      return Object.assign({}, item, {
+        id: simBase64UrlToBuffer(item.id)
+      });
+    });
+  }
+
+  return { publicKey: publicKey };
+}
+
+window.addEventListener("message", async function (event) {
+  const data = event.data || {};
+  const iframe = document.getElementById("app");
+
+  if (!data || !data.type) return;
+  if (!iframe || !iframe.contentWindow) return;
+
+  // Tetap pertahankan fungsi Google SSO lama
+  if (data.type === "SIM_GOOGLE_SSO_RESULT") {
+    iframe.contentWindow.postMessage(data, "*");
+    return;
+  }
+
+ // Daftar passkey / biometrik
+if (data.type === "SIM_PASSKEY_CREATE_REQUEST") {
+  try {
+    if (!window.PublicKeyCredential || !navigator.credentials) {
+      throw new Error("Browser belum mendukung WebAuthn/passkey.");
+    }
+
+    if (
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable &&
+      !(await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())
+    ) {
+      throw new Error(
+        "Biometrik internal perangkat tidak tersedia. Aktifkan fingerprint/face unlock dan kunci layar HP terlebih dahulu."
+      );
+    }
+
+    const credential = await navigator.credentials.create(
+      simPrepareCreateOptions(data.payload || {})
+    );
+
+    simReplyToPasskeyRequester(event, {
+      type: "SIM_PASSKEY_CREATE_RESULT",
+      requestId: data.requestId || "",
+      success: true,
+      credential: simSerializeCredential(credential)
+    });
+  } catch (err) {
+    simReplyToPasskeyRequester(event, {
+      type: "SIM_PASSKEY_CREATE_RESULT",
+      requestId: data.requestId || "",
+      success: false,
+      errorName: err && err.name ? err.name : "Error",
+      errorMessage: err && err.message ? err.message : String(err)
+    });
+  }
+
+  return;
+}
+
+ // Login passkey / biometrik
+if (data.type === "SIM_PASSKEY_GET_REQUEST") {
+  try {
+    if (!window.PublicKeyCredential || !navigator.credentials) {
+      throw new Error("Browser belum mendukung WebAuthn/passkey.");
+    }
+
+    if (
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable &&
+      !(await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())
+    ) {
+      throw new Error(
+        "Biometrik internal perangkat tidak tersedia. Aktifkan fingerprint/face unlock dan kunci layar HP terlebih dahulu."
+      );
+    }
+
+    const credential = await navigator.credentials.get(
+      simPrepareGetOptions(data.payload || {})
+    );
+
+    simReplyToPasskeyRequester(event, {
+      type: "SIM_PASSKEY_GET_RESULT",
+      requestId: data.requestId || "",
+      success: true,
+      credential: simSerializeCredential(credential)
+    });
+  } catch (err) {
+    simReplyToPasskeyRequester(event, {
+      type: "SIM_PASSKEY_GET_RESULT",
+      requestId: data.requestId || "",
+      success: false,
+      errorName: err && err.name ? err.name : "Error",
+      errorMessage: err && err.message ? err.message : String(err)
+    });
+  }
+
+  return;
+}
+});
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./sw.js")
+          .then(function () {
+            console.log("Service Worker aktif");
+          })
+          .catch(function (err) {
+            console.error("Service Worker gagal:", err);
+          });
+      });
+    }
+
+    function simReplyToPasskeyRequester(event, payload) {
+  const iframe = document.getElementById("app");
+  const target =
+    event && event.source
+      ? event.source
+      : (iframe && iframe.contentWindow ? iframe.contentWindow : null);
+
+  if (!target || typeof target.postMessage !== "function") {
+    console.warn("Target balasan passkey tidak ditemukan:", payload);
+    return;
+  }
+
+  target.postMessage(payload, "*");
+}
+  </script>
+</body>
+</html>
