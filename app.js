@@ -70,7 +70,9 @@ async function ensureServiceWorker() {
   }
 
   if (!serviceWorkerRegistration) {
-    serviceWorkerRegistration = await navigator.serviceWorker.register("./sw.js");
+   serviceWorkerRegistration = await navigator.serviceWorker.register("./sw.js?v=presensi-fcm-v3", {
+  scope: "./"
+});
   }
 
   return serviceWorkerRegistration;
@@ -743,3 +745,54 @@ document.addEventListener("visibilitychange", function () {
     autoRegisterFcmTokenIfPermissionGranted(lastFcmRequestPayload || {});
   }
 });
+
+/* =========================================================
+   FCM BOOT FALLBACK - SIM PRESENSI
+   Memastikan popup buatan muncul saat aplikasi dibuka
+========================================================= */
+
+window.__SIM_PRESENSI_FCM_APPJS_LOADED = true;
+console.log("SIM Presensi FCM app.js aktif");
+
+function forceCheckFcmPermissionOnOpen() {
+  setTimeout(async function () {
+    try {
+      if (!("Notification" in window)) {
+        console.warn("Notification API tidak tersedia.");
+        return;
+      }
+
+      console.log("Status izin notifikasi:", Notification.permission);
+
+      if (Notification.permission === "granted") {
+        await autoRegisterFcmTokenIfPermissionGranted(lastFcmRequestPayload || {});
+        return;
+      }
+
+      if (sessionStorage.getItem("sim_fcm_prompt_shown_this_open") === "1") {
+        return;
+      }
+
+      sessionStorage.setItem("sim_fcm_prompt_shown_this_open", "1");
+
+      if (Notification.permission === "denied") {
+        showFcmDeniedInstructionOverlay();
+        return;
+      }
+
+      if (Notification.permission === "default") {
+        showFcmPromptOverlay(lastFcmRequestPayload || {});
+      }
+    } catch (err) {
+      console.warn("FCM boot fallback gagal:", err);
+    }
+  }, 2500);
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", forceCheckFcmPermissionOnOpen);
+} else {
+  forceCheckFcmPermissionOnOpen();
+}
+
+window.addEventListener("load", forceCheckFcmPermissionOnOpen);
