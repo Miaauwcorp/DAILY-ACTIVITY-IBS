@@ -6,12 +6,9 @@ import {
   isSupported
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-messaging.js";
 
-/* =========================================================
-   KONFIGURASI FIREBASE - SIM PRESENSI IBS
-   Jika memakai Firebase project yang sama dengan Murojaah,
-   config di bawah boleh sama. Jika memakai project baru,
-   ganti semuanya dari Firebase Console.
-========================================================= */
+/* =========================
+   KONFIGURASI FIREBASE
+========================= */
 
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzOgliC5ZYJsGdlbd0AkxuGVWoLK2FkbcFczP2xqX6CSUsgOzZItR9scXIp_lapjJJG/exec";
 
@@ -48,15 +45,13 @@ function isStandalonePwa() {
 function getCurrentUserPayload(extraPayload = {}) {
   const userId =
     extraPayload.userId ||
-    extraPayload.username ||
-    localStorage.getItem("presensi_user_id") ||
+    document.getElementById("user-id")?.value ||
     localStorage.getItem("sim_user_id") ||
     "anonymous";
 
   const name =
     extraPayload.name ||
-    extraPayload.nama ||
-    localStorage.getItem("presensi_user_name") ||
+    document.getElementById("user-name")?.value ||
     localStorage.getItem("sim_user_name") ||
     userId;
 
@@ -84,7 +79,7 @@ async function ensureServiceWorker() {
 async function sendTokenToGas(token, userPayload) {
   const payload = {
     action: "save_fcm_token",
-    token: token,
+    token,
     ...userPayload
   };
 
@@ -108,6 +103,10 @@ async function sendTokenToGas(token, userPayload) {
   }
 }
 
+/*
+  Fungsi ini WAJIB dipanggil dari klik/tap user.
+  Jangan dipanggil otomatis saat halaman load.
+*/
 export async function enablePushNotification(extraPayload = {}) {
   try {
     setStatus("Memeriksa dukungan browser...");
@@ -151,11 +150,10 @@ export async function enablePushNotification(extraPayload = {}) {
       throw new Error(saveResult.message || "Token gagal disimpan ke backend.");
     }
 
-    localStorage.setItem("presensi_fcm_token", token);
-    localStorage.setItem("presensi_user_id", userPayload.userId);
-    localStorage.setItem("presensi_user_name", userPayload.name);
-    localStorage.setItem("presensi_fcm_permission_done", "1");
-    localStorage.setItem("presensi_fcm_registered_at", new Date().toISOString());
+    localStorage.setItem("sim_fcm_token", token);
+    localStorage.setItem("sim_user_id", userPayload.userId);
+    localStorage.setItem("sim_user_name", userPayload.name);
+    localStorage.setItem("sim_fcm_permission_done", "1");
 
     setStatus(
       "Notifikasi aktif.\n" +
@@ -165,26 +163,32 @@ export async function enablePushNotification(extraPayload = {}) {
 
     return {
       success: true,
-      token: token
+      token
     };
   } catch (err) {
     const message = err && err.message ? err.message : String(err);
+
     setStatus("Gagal mengaktifkan notifikasi: " + message);
 
     return {
       success: false,
-      message: message
+      message
     };
   }
 }
 
 /*
-  Auto-register token jika user dulu menolak notifikasi,
-  lalu kemudian mengaktifkan notifikasi dari pengaturan HP/browser.
+  Auto-register token jika user sebelumnya menolak,
+  lalu di kemudian hari mengaktifkan izin notifikasi dari pengaturan HP/browser.
+
+  Fungsi ini tidak meminta izin ulang.
+  Fungsi ini hanya berjalan kalau Notification.permission sudah "granted".
 */
 async function autoRegisterFcmTokenIfPermissionGranted(extraPayload = {}) {
   try {
     if (!("Notification" in window)) return;
+
+    // Kalau masih default/denied, token tidak bisa dibuat.
     if (Notification.permission !== "granted") return;
 
     const supported = await isSupported();
@@ -202,21 +206,29 @@ async function autoRegisterFcmTokenIfPermissionGranted(extraPayload = {}) {
     if (!token) return;
 
     const userPayload = getCurrentUserPayload(extraPayload);
+
+    /*
+      Penting:
+      Tetap kirim token ke GAS setiap aplikasi dibuka.
+      Ini aman karena backend saveFcmToken_ sudah upsert berdasarkan token.
+      Kalau token sebelumnya belum masuk sheet, dia akan masuk.
+      Kalau token sudah ada, data Last Seen akan diperbarui.
+    */
     const saveResult = await sendTokenToGas(token, userPayload);
 
     if (saveResult && saveResult.success) {
-      localStorage.setItem("presensi_fcm_token", token);
-      localStorage.setItem("presensi_user_id", userPayload.userId);
-      localStorage.setItem("presensi_user_name", userPayload.name);
-      localStorage.setItem("presensi_fcm_permission_done", "1");
-      localStorage.setItem("presensi_fcm_registered_at", new Date().toISOString());
+      localStorage.setItem("sim_fcm_token", token);
+      localStorage.setItem("sim_user_id", userPayload.userId);
+      localStorage.setItem("sim_user_name", userPayload.name);
+      localStorage.setItem("sim_fcm_permission_done", "1");
+      localStorage.setItem("sim_fcm_registered_at", new Date().toISOString());
 
-      console.log("FCM Presensi token aktif dan tersimpan:", saveResult);
+      console.log("FCM token aktif dan tersimpan:", saveResult);
     } else {
-      console.warn("FCM Presensi token gagal disimpan:", saveResult);
+      console.warn("FCM token gagal disimpan:", saveResult);
     }
   } catch (err) {
-    console.warn("Auto register FCM Presensi gagal:", err);
+    console.warn("Auto register FCM gagal:", err);
   }
 }
 
@@ -277,7 +289,7 @@ function showFcmPromptOverlay(payload = {}) {
       </h2>
 
       <p style="margin: 0 0 18px; color: #4b5563; line-height: 1.6; font-size: 15px;">
-        Agar SIM Presensi dapat mengirim pemberitahuan penting,
+        Agar SIM Murojaah dapat mengirim pemberitahuan penting,
         silakan aktifkan notifikasi pada perangkat ini.
       </p>
 
@@ -332,40 +344,127 @@ function showFcmPromptOverlay(payload = {}) {
           token: result.token
         }, "*");
       }
-
-      return;
+    } else {
+      btn.disabled = false;
+      btn.textContent = "Coba Lagi";
+      alert(result.message || "Notifikasi gagal diaktifkan.");
     }
-
-    btn.disabled = false;
-    btn.textContent = "Coba Lagi";
-    alert(result.message || "Notifikasi gagal diaktifkan.");
   });
 
-  document.getElementById("sim-fcm-later-btn").addEventListener("click", function () {
-    sessionStorage.setItem("presensi_fcm_prompt_shown_this_open", "1");
-    removeFcmPromptOverlay();
-  });
+ document.getElementById("sim-fcm-later-btn").addEventListener("click", function () {
+  /*
+    Jangan pakai localStorage di sini.
+    Kalau pakai localStorage, popup tidak akan muncul lagi di pembukaan berikutnya.
+    Dengan sessionStorage, popup hanya tidak muncul ulang pada sesi buka aplikasi saat ini.
+  */
+  sessionStorage.setItem("sim_fcm_prompt_shown_this_open", "1");
+  removeFcmPromptOverlay();
+});
 }
 
-function showFcmSettingsGuide() {
-  const help = document.getElementById("sim-fcm-denied-help");
-  if (help) help.style.display = "block";
+/*
+  Tombol manual jika suatu saat dipakai langsung di parent page.
+*/
+window.enablePushFromButton = function () {
+  showFcmPromptOverlay();
+};
 
-  alert(
-    "Jika pengaturan tidak terbuka otomatis, buka manual:\n\n" +
-    "1. Tekan dan tahan ikon aplikasi SIM Presensi.\n" +
-    "2. Pilih Info Aplikasi / App Info.\n" +
-    "3. Buka Notifikasi / Notifications.\n" +
-    "4. Aktifkan izin notifikasi.\n" +
-    "5. Tutup lalu buka ulang aplikasi."
-  );
+/*
+  Foreground notification: saat tab sedang terbuka.
+*/
+async function installForegroundListener() {
+  try {
+    const supported = await isSupported();
+    if (!supported) return;
+
+    messaging = getMessaging(app);
+
+    onMessage(messaging, function (payload) {
+      const title =
+        payload?.notification?.title ||
+        payload?.data?.title ||
+        "Notifikasi";
+
+      const body =
+        payload?.notification?.body ||
+        payload?.data?.body ||
+        "";
+
+      const url =
+        payload?.data?.url ||
+        payload?.fcmOptions?.link ||
+        "./";
+
+      if (Notification.permission === "granted") {
+        new Notification(title, {
+          body,
+          icon: "./icon-192.png",
+          data: { url }
+        });
+      }
+    });
+  } catch (err) {
+    console.warn("Foreground listener gagal:", err);
+  }
+}
+
+installForegroundListener();
+
+/*
+  Bridge dari iframe GAS.
+  Penting:
+  Jangan langsung Notification.requestPermission() dari event postMessage,
+  karena browser sering tidak menganggap itu sebagai user gesture.
+  Jadi parent menampilkan overlay, lalu user klik tombol di parent.
+*/
+window.addEventListener("message", function (event) {
+  const data = event.data || {};
+
+  if (data.type !== "SIM_FCM_ENABLE_REQUEST") return;
+
+  showFcmPromptOverlay(data.payload || {});
+});
+
+/*
+  Setelah PWA pertama kali di-install / dibuka standalone,
+  tampilkan overlay sendiri. Tetap butuh klik user.
+*/
+window.addEventListener("appinstalled", function () {
+  localStorage.setItem("sim_pwa_installed", "1");
+
+  setTimeout(function () {
+    if (Notification.permission === "default") {
+      showFcmPromptOverlay();
+    }
+  }, 800);
+});
+
+function shouldShowFcmPromptEveryOpen() {
+  if (!("Notification" in window)) return false;
+
+  // Kalau sudah granted, jangan tampilkan popup lagi.
+  if (Notification.permission === "granted") return false;
+
+  // Kalau user sudah memilih Block/Deny, browser tidak akan menampilkan prompt izin lagi.
+  // Nanti kita tampilkan popup instruksi khusus.
+  if (Notification.permission === "denied") return true;
+
+  // Kalau masih default, artinya belum pernah diberi izin.
+  return Notification.permission === "default";
 }
 
 function openNotificationSettingsBestEffort() {
+  /*
+    Browser/PWA tidak selalu boleh membuka pengaturan notifikasi secara langsung.
+    Kode ini mencoba beberapa jalur umum di Android/Chrome.
+    Jika gagal, user tetap diberi panduan manual.
+  */
+
   const isAndroid = /Android/i.test(navigator.userAgent || "");
 
   if (isAndroid) {
     try {
+      // Percobaan membuka pengaturan notifikasi Android.
       window.location.href =
         "intent://settings/#Intent;action=android.settings.APP_NOTIFICATION_SETTINGS;end";
       return;
@@ -374,6 +473,7 @@ function openNotificationSettingsBestEffort() {
     }
 
     try {
+      // Fallback ke pengaturan aplikasi Android.
       window.location.href =
         "intent://settings/#Intent;action=android.settings.APPLICATION_SETTINGS;end";
       return;
@@ -383,6 +483,22 @@ function openNotificationSettingsBestEffort() {
   }
 
   showFcmSettingsGuide();
+}
+
+function showFcmSettingsGuide() {
+  const help = document.getElementById("sim-fcm-denied-help");
+  if (help) {
+    help.style.display = "block";
+  }
+
+  alert(
+    "Jika pengaturan tidak terbuka otomatis, buka manual:\n\n" +
+    "1. Tekan dan tahan ikon aplikasi SIM Murojaah.\n" +
+    "2. Pilih Info Aplikasi / App Info.\n" +
+    "3. Buka Notifikasi / Notifications.\n" +
+    "4. Aktifkan izin notifikasi.\n" +
+    "5. Tutup lalu buka ulang aplikasi."
+  );
 }
 
 function showFcmDeniedInstructionOverlay() {
@@ -507,7 +623,7 @@ function showFcmDeniedInstructionOverlay() {
         line-height: 1.6;
       ">
         <b>Cara membuka blokir notifikasi:</b><br>
-        1. Tekan dan tahan ikon aplikasi SIM Presensi di layar HP.<br>
+        1. Tekan dan tahan ikon aplikasi SIM Murojaah di layar HP.<br>
         2. Pilih <b>Info Aplikasi</b> / <b>App Info</b>.<br>
         3. Masuk ke <b>Notifikasi</b> / <b>Notifications</b>.<br>
         4. Aktifkan izin notifikasi.<br>
@@ -524,73 +640,78 @@ function showFcmDeniedInstructionOverlay() {
 
   document.getElementById("sim-fcm-guide-btn").addEventListener("click", function () {
     const help = document.getElementById("sim-fcm-denied-help");
-    if (help) help.style.display = help.style.display === "none" ? "block" : "none";
+    if (help) {
+      help.style.display = help.style.display === "none" ? "block" : "none";
+    }
   });
 
   document.getElementById("sim-fcm-check-again-btn").addEventListener("click", async function () {
-    const btn = this;
-    btn.disabled = true;
-    btn.textContent = "Memeriksa...";
+  const btn = this;
+  btn.disabled = true;
+  btn.textContent = "Memeriksa...";
 
-    try {
-      if (!("Notification" in window)) {
-        alert("Browser ini belum mendukung notifikasi.");
-        btn.disabled = false;
-        btn.textContent = "Saya Sudah Mengaktifkan";
+  try {
+    if (!("Notification" in window)) {
+      alert("Browser ini belum mendukung notifikasi.");
+      btn.disabled = false;
+      btn.textContent = "Saya Sudah Mengaktifkan";
+      return;
+    }
+
+    if (Notification.permission === "granted") {
+      await autoRegisterFcmTokenIfPermissionGranted(lastFcmRequestPayload || {});
+
+      const savedToken = localStorage.getItem("sim_fcm_token") || "";
+
+      if (savedToken) {
+        removeFcmPromptOverlay();
+        alert("Notifikasi berhasil diaktifkan dan token sudah terdaftar.");
         return;
       }
 
-      if (Notification.permission === "granted") {
-        await autoRegisterFcmTokenIfPermissionGranted(lastFcmRequestPayload || {});
-        const savedToken = localStorage.getItem("presensi_fcm_token") || "";
-
-        if (savedToken) {
-          removeFcmPromptOverlay();
-          alert("Notifikasi berhasil diaktifkan dan token sudah terdaftar.");
-          return;
-        }
-
-        alert("Izin sudah aktif, tetapi token belum berhasil dibuat. Tutup dan buka ulang aplikasi.");
-      } else if (Notification.permission === "denied") {
-        showFcmSettingsGuide();
-      } else {
-        removeFcmPromptOverlay();
-        showFcmPromptOverlay(lastFcmRequestPayload || {});
-      }
-    } catch (err) {
-      alert(err && err.message ? err.message : String(err));
+      alert("Izin sudah aktif, tetapi token belum berhasil dibuat. Tutup dan buka ulang aplikasi.");
+    } else if (Notification.permission === "denied") {
+      showFcmSettingsGuide();
+    } else {
+      removeFcmPromptOverlay();
+      showFcmPromptOverlay(lastFcmRequestPayload || {});
     }
+  } catch (err) {
+    alert(err && err.message ? err.message : String(err));
+  }
 
-    btn.disabled = false;
-    btn.textContent = "Saya Sudah Mengaktifkan";
-  });
+  btn.disabled = false;
+  btn.textContent = "Saya Sudah Mengaktifkan";
+});
 
   document.getElementById("sim-fcm-denied-close-btn").addEventListener("click", function () {
-    sessionStorage.setItem("presensi_fcm_prompt_shown_this_open", "1");
+    sessionStorage.setItem("sim_fcm_prompt_shown_this_open", "1");
     removeFcmPromptOverlay();
   });
-}
-
-function shouldShowFcmPromptEveryOpen() {
-  if (!("Notification" in window)) return false;
-  if (Notification.permission === "granted") return false;
-  if (Notification.permission === "denied") return true;
-  return Notification.permission === "default";
 }
 
 function scheduleFcmPromptEveryOpen() {
   setTimeout(async function () {
     if (!("Notification" in window)) return;
 
+    /*
+      Jika user sudah mengaktifkan notifikasi lewat pengaturan HP/browser,
+      langsung buat token dan simpan ke Google Sheets.
+    */
     if (Notification.permission === "granted") {
       await autoRegisterFcmTokenIfPermissionGranted(lastFcmRequestPayload || {});
       return;
     }
 
+    /*
+      Jika masih denied, tampilkan popup info/pengaturan.
+      Jika masih default, tampilkan popup aktifkan notifikasi.
+    */
     if (!shouldShowFcmPromptEveryOpen()) return;
-    if (sessionStorage.getItem("presensi_fcm_prompt_shown_this_open") === "1") return;
 
-    sessionStorage.setItem("presensi_fcm_prompt_shown_this_open", "1");
+    if (sessionStorage.getItem("sim_fcm_prompt_shown_this_open") === "1") return;
+
+    sessionStorage.setItem("sim_fcm_prompt_shown_this_open", "1");
 
     if (Notification.permission === "denied") {
       showFcmDeniedInstructionOverlay();
@@ -601,66 +722,6 @@ function scheduleFcmPromptEveryOpen() {
   }, 1500);
 }
 
-async function installForegroundListener() {
-  try {
-    const supported = await isSupported();
-    if (!supported) return;
-
-    messaging = getMessaging(app);
-
-    onMessage(messaging, function (payload) {
-      const title =
-        payload?.notification?.title ||
-        payload?.data?.title ||
-        "Notifikasi";
-
-      const body =
-        payload?.notification?.body ||
-        payload?.data?.body ||
-        "";
-
-      const url =
-        payload?.data?.url ||
-        payload?.fcmOptions?.link ||
-        "./";
-
-      if (Notification.permission === "granted") {
-        new Notification(title, {
-          body: body,
-          icon: "./icon-192.png",
-          data: { url: url }
-        });
-      }
-    });
-  } catch (err) {
-    console.warn("Foreground listener gagal:", err);
-  }
-}
-
-installForegroundListener();
-
-window.enablePushFromButton = function () {
-  showFcmPromptOverlay();
-};
-
-window.addEventListener("message", function (event) {
-  const data = event.data || {};
-
-  if (data.type !== "SIM_FCM_ENABLE_REQUEST") return;
-
-  showFcmPromptOverlay(data.payload || {});
-});
-
-window.addEventListener("appinstalled", function () {
-  localStorage.setItem("presensi_pwa_installed", "1");
-
-  setTimeout(function () {
-    if (Notification.permission === "default") {
-      showFcmPromptOverlay();
-    }
-  }, 800);
-});
-
 document.addEventListener("DOMContentLoaded", function () {
   scheduleFcmPromptEveryOpen();
 });
@@ -669,6 +730,10 @@ window.addEventListener("pageshow", function () {
   scheduleFcmPromptEveryOpen();
 });
 
+/*
+  Saat user balik dari pengaturan HP/browser ke aplikasi,
+  sistem cek lagi apakah izin sudah berubah menjadi granted.
+*/
 window.addEventListener("focus", function () {
   autoRegisterFcmTokenIfPermissionGranted(lastFcmRequestPayload || {});
 });
