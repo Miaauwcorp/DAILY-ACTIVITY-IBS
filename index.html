@@ -570,7 +570,7 @@ if (data.type === "SIM_PASSKEY_GET_REQUEST") {
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-       navigator.serviceWorker.register("./sw.js?v=presensi-fcm-v3", {
+       navigator.serviceWorker.register("./sw.js?v=presensi-fcm-v4", {
   scope: "./"
 })
           .then(function () {
@@ -610,6 +610,6 @@ if (data.type === "SIM_PASSKEY_GET_REQUEST") {
   }
 })();
   </script>
-   <script type="module" src="./app.js?v=presensi-fcm-v3"></script>
+   <script type="module" src="./app.js?v=presensi-fcm-v4"></script>
 </body>
 </html>
