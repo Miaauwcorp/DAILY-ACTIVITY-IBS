@@ -30,6 +30,10 @@ let messaging = null;
 let serviceWorkerRegistration = null;
 let lastFcmRequestPayload = null;
 
+let fcmRegisterRunning = false;
+let lastFcmRegisterAt = 0;
+const FCM_REGISTER_COOLDOWN_MS = 60 * 1000;
+
 function setStatus(text) {
   const el = document.getElementById("push-status");
   if (el) el.textContent = text;
@@ -85,23 +89,42 @@ async function sendTokenToGas(token, userPayload) {
     ...userPayload
   };
 
-  const response = await fetch(GAS_WEB_APP_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "text/plain;charset=utf-8"
-    },
-    body: JSON.stringify(payload)
-  });
-
-  const text = await response.text();
+  const body = JSON.stringify(payload);
 
   try {
-    return JSON.parse(text);
-  } catch (err) {
+    await fetch(GAS_WEB_APP_URL, {
+      method: "POST",
+      mode: "no-cors",
+      redirect: "follow",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body
+    });
+
     return {
-      success: response.ok,
-      raw: text
+      success: true,
+      message: "Token FCM dikirim ke backend.",
+      opaque: true
     };
+  } catch (err) {
+    if (navigator.sendBeacon) {
+      const blob = new Blob([body], {
+        type: "text/plain;charset=utf-8"
+      });
+
+      const sent = navigator.sendBeacon(GAS_WEB_APP_URL, blob);
+
+      if (sent) {
+        return {
+          success: true,
+          message: "Token FCM dikirim via sendBeacon.",
+          opaque: true
+        };
+      }
+    }
+
+    throw err;
   }
 }
 
@@ -187,10 +210,17 @@ export async function enablePushNotification(extraPayload = {}) {
   Fungsi ini hanya berjalan kalau Notification.permission sudah "granted".
 */
 async function autoRegisterFcmTokenIfPermissionGranted(extraPayload = {}) {
+  if (fcmRegisterRunning) return;
+
+  const now = Date.now();
+  if (now - lastFcmRegisterAt < FCM_REGISTER_COOLDOWN_MS) return;
+
+  fcmRegisterRunning = true;
+  lastFcmRegisterAt = now;
+
   try {
     if (!("Notification" in window)) return;
 
-    // Kalau masih default/denied, token tidak bisa dibuat.
     if (Notification.permission !== "granted") return;
 
     const supported = await isSupported();
@@ -209,13 +239,6 @@ async function autoRegisterFcmTokenIfPermissionGranted(extraPayload = {}) {
 
     const userPayload = getCurrentUserPayload(extraPayload);
 
-    /*
-      Penting:
-      Tetap kirim token ke GAS setiap aplikasi dibuka.
-      Ini aman karena backend saveFcmToken_ sudah upsert berdasarkan token.
-      Kalau token sebelumnya belum masuk sheet, dia akan masuk.
-      Kalau token sudah ada, data Last Seen akan diperbarui.
-    */
     const saveResult = await sendTokenToGas(token, userPayload);
 
     if (saveResult && saveResult.success) {
@@ -225,12 +248,14 @@ async function autoRegisterFcmTokenIfPermissionGranted(extraPayload = {}) {
       localStorage.setItem("sim_fcm_permission_done", "1");
       localStorage.setItem("sim_fcm_registered_at", new Date().toISOString());
 
-      console.log("FCM token aktif dan tersimpan:", saveResult);
+      console.log("FCM token aktif dan dikirim:", saveResult);
     } else {
-      console.warn("FCM token gagal disimpan:", saveResult);
+      console.warn("FCM token gagal dikirim:", saveResult);
     }
   } catch (err) {
     console.warn("Auto register FCM gagal:", err);
+  } finally {
+    fcmRegisterRunning = false;
   }
 }
 
