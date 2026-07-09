@@ -1,4 +1,4 @@
-const CACHE_NAME = "sim-presensi-ibs-v4-fcm";
+const CACHE_NAME = "sim-presensi-ibs-v5-fcm";
 
 const APP_SHELL = [
   "./",
