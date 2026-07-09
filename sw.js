@@ -1,4 +1,4 @@
-const APP_VERSION = "20260710-v20";
+const APP_VERSION = "20260710-v21";
 const CACHE_NAME = "sim-presensi-ibs-" + APP_VERSION;
 
 const APP_SHELL = [
