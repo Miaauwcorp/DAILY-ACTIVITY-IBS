@@ -68,16 +68,44 @@ function getCurrentUserPayload(extraPayload = {}) {
   };
 }
 
+const SERVICE_WORKER_VERSION =
+  String(window.SIM_PWA_VERSION || "20260710-v21").trim();
+
+const SERVICE_WORKER_URL =
+  "./sw.js?v=" + encodeURIComponent(SERVICE_WORKER_VERSION);
+
 async function ensureServiceWorker() {
   if (!("serviceWorker" in navigator)) {
     throw new Error("Browser ini belum mendukung Service Worker.");
   }
 
-  if (!serviceWorkerRegistration) {
-   serviceWorkerRegistration = await navigator.serviceWorker.register("./sw.js?v=presensi-fcm-v3", {
-  scope: "./"
-});
+  /*
+    Gunakan URL dan versi yang sama dengan index.html.
+    Jangan membuat versi khusus FCM seperti presensi-fcm-v3.
+  */
+  await navigator.serviceWorker.register(SERVICE_WORKER_URL, {
+    scope: "./",
+    updateViaCache: "none"
+  });
+
+  /*
+    register() belum menjamin worker sudah activated.
+    ready menunggu sampai tersedia registration dengan worker aktif.
+  */
+  const readyRegistration = await navigator.serviceWorker.ready;
+
+  if (!readyRegistration || !readyRegistration.active) {
+    throw new Error(
+      "Service Worker sudah terdaftar tetapi belum aktif. Silakan buka ulang aplikasi."
+    );
   }
+
+  serviceWorkerRegistration = readyRegistration;
+
+  console.log(
+    "Service Worker siap untuk FCM:",
+    serviceWorkerRegistration.active.scriptURL
+  );
 
   return serviceWorkerRegistration;
 }
@@ -216,7 +244,11 @@ async function autoRegisterFcmTokenIfPermissionGranted(extraPayload = {}) {
   if (now - lastFcmRegisterAt < FCM_REGISTER_COOLDOWN_MS) return;
 
   fcmRegisterRunning = true;
-  lastFcmRegisterAt = now;
+
+/*
+  Jangan isi lastFcmRegisterAt di sini.
+  Waktu cooldown hanya disimpan setelah token benar-benar berhasil.
+*/
 
   try {
     if (!("Notification" in window)) return;
@@ -242,6 +274,7 @@ async function autoRegisterFcmTokenIfPermissionGranted(extraPayload = {}) {
     const saveResult = await sendTokenToGas(token, userPayload);
 
     if (saveResult && saveResult.success) {
+      lastFcmRegisterAt = Date.now();
       localStorage.setItem("sim_fcm_token", token);
       localStorage.setItem("sim_user_id", userPayload.userId);
       localStorage.setItem("sim_user_name", userPayload.name);
@@ -252,11 +285,16 @@ async function autoRegisterFcmTokenIfPermissionGranted(extraPayload = {}) {
     } else {
       console.warn("FCM token gagal dikirim:", saveResult);
     }
-  } catch (err) {
-    console.warn("Auto register FCM gagal:", err);
-  } finally {
-    fcmRegisterRunning = false;
-  }
+ } catch (err) {
+  /*
+    Izinkan percobaan ulang segera apabila proses sebelumnya gagal.
+  */
+  lastFcmRegisterAt = 0;
+
+  console.warn("Auto register FCM gagal:", err);
+} finally {
+  fcmRegisterRunning = false;
+}
 }
 
 function removeFcmPromptOverlay() {
