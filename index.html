@@ -291,8 +291,9 @@ try {
       }, LOAD_TIMEOUT_MS);
     }
 
-    function loadApp(forceReload = false) {
-  const iframe = document.getElementById("app");
+   function loadApp(forceReload = false) {
+  const iframe =
+    document.getElementById("app");
 
   if (!navigator.onLine) {
     clearLoadTimer();
@@ -300,12 +301,11 @@ try {
     return;
   }
 
-  const hasOpenedBefore = localStorage.getItem(HAS_OPENED_KEY) === "1";
+  const hasOpenedBefore =
+    localStorage.getItem(HAS_OPENED_KEY) === "1";
 
   iframeLoaded = false;
 
-  // Kalau aplikasi pernah berhasil terbuka sebelumnya,
-  // langsung tampilkan iframe, jangan tampilkan halaman loading penuh.
   if (hasOpenedBefore) {
     setView("app");
   } else {
@@ -314,12 +314,27 @@ try {
 
   startLoadTimer();
 
-      iframe.setAttribute(
-  "allow",
-  "fullscreen *; camera *; microphone *; display-capture *; geolocation *; publickey-credentials-create *; publickey-credentials-get *;"
-);
+  iframe.setAttribute(
+    "allow",
+    "fullscreen *; camera *; microphone *; " +
+    "display-capture *; geolocation *; " +
+    "publickey-credentials-create *; " +
+    "publickey-credentials-get *;"
+  );
 
-  iframe.src = buildIframeUrl(forceReload);
+  /* DEBUG SEMENTARA */
+  iframe.src =
+    GAS_URL +
+    "?frameProbe=1" +
+    "&source=web-wrapper" +
+    "&bioV=3" +
+    "&_probe=" +
+    Date.now();
+
+  console.log(
+    "DEBUG iframe URL:",
+    iframe.src
+  );
 }
 
     function retryApp() {
